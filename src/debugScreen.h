@@ -19,14 +19,14 @@ typedef struct PsvDebugScreenFont {
 #ifndef SCREEN_TAB_SIZE
 #define SCREEN_TAB_SIZE (8)
 #endif
-#define SCREEN_TAB_W    ((F.size_w) * SCREEN_TAB_SIZE)
+#define SCREEN_TAB_W    (F.size_w * SCREEN_TAB_SIZE)
 #define F psvDebugScreenFont
 
-#define FROM_GREY(c     ) ((((c)*9)    <<16)  |  (((c)*9)       <<8)  | ((c)*9))
-#define FROM_3BIT(c,dark) (((!!((c)&4))<<23)  | ((!!((c)&2))<<15)     | ((!!((c)&1))<<7) | (dark ? 0 : 0x7F7F7F))
-#define FROM_6BIT(c     ) ((((c)%6)*(51<<16)) | ((((c)/6)%6)*(51<<8)) | ((((c)/36)%6)*51))
-#define FROM_FULL(r,g,b ) ((r<<16) | (g<<8) | (b))
-#define CLEARSCRN(H,toH,W,toW) for(int h = H; h < toH; h++)for(int w = W; w < toW; w++)((uint32_t*)base)[h*SCREEN_FB_WIDTH + w] = colorBg;
+#define FROM_GREY(c)    ((((c)*9) << 16) | (((c)*9) << 8) | ((c)*9))
+#define FROM_3BIT(c,d)  ((((!!((c)&4)) << 23) | ((!!((c)&2)) << 15) | ((!!((c)&1)) << 7)) | ((d) ? 0 : 0x7F7F7F))
+#define FROM_6BIT(c)    ((((c)%6)*(51<<16)) | ((((c)/6)%6)*(51<<8)) | ((((c)/36)%6)*51))
+#define FROM_FULL(r,g,b) ((r<<16) | (g<<8) | (b))
+#define CLEARSCRN(H,toH,W,toW) for(int h = H; h < toH; h++) for(int w = W; w < toW; w++) ((uint32_t*)base)[h*SCREEN_FB_WIDTH + w] = colorBg
 
 static int mutex, coordX, savedX, coordY, savedY;
 static uint32_t defaultFg = 0xFFFFFFFF, colorFg = 0xFFFFFFFF;
@@ -38,59 +38,77 @@ static uint32_t defaultBg = 0xFF000000, colorBg = 0xFF000000;
 #include <psp2/kernel/threadmgr.h>
 static void* base;
 #else
-#define sceKernelLockMutex(m,v,x) m=v
-#define sceKernelUnlockMutex(m,v) m=v
+#define sceKernelLockMutex(m,v,x) m = v
+#define sceKernelUnlockMutex(m,v) m = v
 static char base[SCREEN_FB_WIDTH * SCREEN_HEIGHT * 4];
 #endif
 
 static size_t psvDebugScreenEscape(const unsigned char *str) {
-	for(unsigned i = 0, argc = 0, arg[32] = {0}; argc < (sizeof(arg)/sizeof(*arg)) && str[i]!='\0'; i++)
-		switch(str[i]) {
-		case '0'...'9': arg[argc] = (arg[argc]*10) + (str[i] - '0'); continue;
-		case ';': argc++; continue;
-		case 's': savedX = coordX; savedY = coordY; return i;
-		case 'u': coordX = savedX; coordY = savedY; return i;
-		case 'A': coordY -= arg[0] * (F.size_h); return i;
-		case 'B': coordY += arg[0] * (F.size_h); return i;
-		case 'C': coordX += arg[0] * (F.size_w); return i;
-		case 'D': coordX -= arg[0] * (F.size_w); return i;
-		case 'E': coordY += arg[0] * (F.size_h); coordX = 0; return i;
-		case 'F': coordY -= arg[0] * (F.size_h); coordX = 0; return i;
-		case 'G': coordX = (arg[0]-1) * (F.size_w); return i;
+	unsigned arg[32] = {0}, argc = 0;
+	for (unsigned i = 0; str[i] && argc < 32; i++) {
+		switch (str[i]) {
+		case '0'...'9':
+			arg[argc] = arg[argc] * 10 + (str[i] - '0');
+			continue;
+		case ';':
+			argc++;
+			continue;
+		case 's':
+			savedX = coordX; savedY = coordY;
+			return i;
+		case 'u':
+			coordX = savedX; coordY = savedY;
+			return i;
+		case 'A': coordY -= arg[0] * F.size_h; return i;
+		case 'B': coordY += arg[0] * F.size_h; return i;
+		case 'C': coordX += arg[0] * F.size_w; return i;
+		case 'D': coordX -= arg[0] * F.size_w; return i;
+		case 'E': coordY += arg[0] * F.size_h; coordX = 0; return i;
+		case 'F': coordY -= arg[0] * F.size_h; coordX = 0; return i;
+		case 'G': coordX = (arg[0] - 1) * F.size_w; return i;
 		case 'H':
-		case 'f': coordY = (arg[0]-1) * (F.size_h);
-		          coordX = (arg[1]-1) * (F.size_w); return i;
+		case 'f':
+			coordY = (arg[0] - 1) * F.size_h;
+			coordX = (arg[1] - 1) * F.size_w;
+			return i;
 		case 'J':
 		case 'K':
-			if(arg[0]==0)CLEARSCRN(coordY, coordY + F.size_h, coordX, SCREEN_WIDTH);
-			if(arg[0]==1)CLEARSCRN(coordY, coordY + F.size_h, 0, coordX);
-			if(arg[0]==2)CLEARSCRN(coordY, coordY + F.size_h, 0, SCREEN_WIDTH);
-			if(str[i]=='K')return i;
-			if(arg[0]==0)CLEARSCRN(coordY, SCREEN_HEIGHT, 0, SCREEN_WIDTH);
-			if(arg[0]==1)CLEARSCRN(0, coordY, 0, SCREEN_WIDTH);
-			if(arg[0]==2)CLEARSCRN(0, SCREEN_HEIGHT, 0, SCREEN_WIDTH);
+			if (arg[0] == 0) CLEARSCRN(coordY, coordY + F.size_h, coordX, SCREEN_WIDTH);
+			if (arg[0] == 1) CLEARSCRN(coordY, coordY + F.size_h, 0, coordX);
+			if (arg[0] == 2) CLEARSCRN(coordY, coordY + F.size_h, 0, SCREEN_WIDTH);
+			if (str[i] == 'K') return i;
+			if (arg[0] == 0) CLEARSCRN(coordY, SCREEN_HEIGHT, 0, SCREEN_WIDTH);
+			if (arg[0] == 1) CLEARSCRN(0, coordY, 0, SCREEN_WIDTH);
+			if (arg[0] == 2) CLEARSCRN(0, SCREEN_HEIGHT, 0, SCREEN_WIDTH);
 			return i;
 		case 'm':
-			if(!arg[0]) { arg[0] = 39; arg[1] = 49; argc = 1; }
-			for(unsigned c = 0; c <= argc; c++) {
-				uint32_t unit = arg[c] % 10, mode = arg[c] / 10, *color = mode&1 ? &colorFg : &colorBg;
+			if (!arg[0]) { arg[0] = 39; arg[1] = 49; argc = 1; }
+			for (unsigned c = 0; c <= argc; c++) {
+				uint32_t unit = arg[c] % 10, mode = arg[c] / 10;
+				uint32_t *color = (mode & 1) ? &colorFg : &colorBg;
+
 				if (arg[c] == 1) colorFg |= 0x808080;
 				if (arg[c] == 2) colorFg &= 0x7F7F7F;
+
 				if (mode != 3 && mode != 4 && mode != 9 && mode != 10) continue;
+
 				if (unit == 9) {
-					*color = (mode&1) ? defaultFg : defaultBg;
-				} else if ((unit == 8) && (arg[c+1] == 5)) {
+					*color = (mode & 1) ? defaultFg : defaultBg;
+				} else if ((unit == 8) && (arg[c + 1] == 5)) {
 					c += 2;
-					*color = arg[c] <= 15 ? FROM_3BIT(arg[c], mode < 9)
-					        : arg[c] >= 232 ? FROM_GREY(arg[c]-232)
-					        : FROM_6BIT(arg[c]-16);
-				} else if ((unit == 8) && (arg[c+1] == 2)) {
-					*color = FROM_FULL(arg[c+4], arg[c+3], arg[c+2]);
+					*color = (arg[c] <= 15) ? FROM_3BIT(arg[c], mode < 9)
+					        : (arg[c] >= 232) ? FROM_GREY(arg[c] - 232)
+					        : FROM_6BIT(arg[c] - 16);
+				} else if ((unit == 8) && (arg[c + 1] == 2)) {
+					*color = FROM_FULL(arg[c + 4], arg[c + 3], arg[c + 2]);
 					c += 4;
-				} else *color = FROM_3BIT(unit, mode < 9);
+				} else {
+					*color = FROM_3BIT(unit, mode < 9);
+				}
 			}
 			return i;
 		}
+	}
 	return 0;
 }
 
@@ -99,8 +117,7 @@ int psvDebugScreenInit() {
 	SceUID displayblock = sceKernelAllocMemBlock("display", SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW, SCREEN_FB_SIZE, NULL);
 	sceKernelGetMemBlockBase(displayblock, (void**)&base);
 	SceDisplayFrameBuf frame = { sizeof(frame), base, SCREEN_FB_WIDTH, 0, SCREEN_WIDTH, SCREEN_HEIGHT };
-	coordX = 0;
-	coordY = 0;
+	coordX = coordY = 0;
 	return sceDisplaySetFrameBuf(&frame, SCE_DISPLAY_SETBUF_NEXTFRAME);
 }
 
@@ -131,11 +148,12 @@ int psvDebugScreenPuts(const char * _text) {
 			continue;
 		} else if ((t == '\e') && (text[c+1] == '[')) {
 			c += psvDebugScreenEscape(text + c + 2) + 2;
-			if (coordX < 0) coordX = 0;
-			if (coordY < 0) coordY = 0;
+			coordX = coordX < 0 ? 0 : coordX;
+			coordY = coordY < 0 ? 0 : coordY;
 			continue;
-		} else if ((t > F.last) || (t < F.first))
+		} else if ((t < F.first) || (t > F.last)) {
 			continue;
+		}
 
 		uint32_t *vram = ((uint32_t*)base) + coordX + coordY * SCREEN_FB_WIDTH;
 		uint8_t *font = &F.glyphs[(t - F.first) * bytes_per_glyph];
@@ -150,6 +168,7 @@ int psvDebugScreenPuts(const char * _text) {
 		for (int row = F.height; row < F.size_h; row++, vram += SCREEN_FB_WIDTH)
 			for (uint32_t *pixel = vram, col = 0; col < F.size_w; col++)
 				*pixel++ = colorBg;
+
 		coordX += F.size_w;
 	}
 	sceKernelUnlockMutex(mutex, 1);
@@ -167,18 +186,17 @@ int psvDebugScreenPrintf(const char *format, ...) {
 	return ret;
 }
 
-void psvDebugScreenSetFgColor(uint32_t rgb){
-	psvDebugScreenPrintf("\e[38;2;%u;%u;%um", (rgb>>16)&0xFF, (rgb>>8)&0xFF, rgb&0xFF);
+void psvDebugScreenSetFgColor(uint32_t rgb) {
+	psvDebugScreenPrintf("\e[38;2;%u;%u;%um", (rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
 }
 
-void psvDebugScreenSetBgColor(uint32_t rgb){
-	psvDebugScreenPrintf("\e[48;2;%u;%u;%um", (rgb>>16)&0xFF, (rgb>>8)&0xFF, rgb&0xFF);
+void psvDebugScreenSetBgColor(uint32_t rgb) {
+	psvDebugScreenPrintf("\e[48;2;%u;%u;%um", (rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
 }
 
 void psvDebugScreenClear() {
 	psvDebugScreenPrintf("\e[2J\e[H");
-	coordX = 0;
-	coordY = 0;
+	coordX = coordY = 0;
 }
 
 #undef F
