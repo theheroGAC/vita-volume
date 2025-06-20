@@ -96,7 +96,7 @@ void loadSettings() {
 
 const char* _(const char* key) {
     if (strcmp(lang, "it") == 0) {
-        if (strcmp(key, "title") == 0) return "--- Vita Volume di inthecatsdreams ---";
+        if (strcmp(key, "title") == 0) return "--- Vita Volume di inthecatsdreams fork by TheheroGAC ---";
         if (strcmp(key, "vol_up") == 0) return "Aumenta Volume";
         if (strcmp(key, "vol_down") == 0) return "Diminuisci Volume";
         if (strcmp(key, "mute") == 0) return "Disattiva volume";
@@ -107,7 +107,7 @@ const char* _(const char* key) {
         if (strcmp(key, "language") == 0) return "Lingua: Italiano";
         if (strcmp(key, "saved") == 0) return "Configurazione salvata!";
     } else if (strcmp(lang, "es") == 0) {
-        if (strcmp(key, "title") == 0) return "--- Vita Volume por inthecatsdreams ---";
+        if (strcmp(key, "title") == 0) return "--- Vita Volume por inthecatsdreams fork by TheheroGAC ---";
         if (strcmp(key, "vol_up") == 0) return "Subir volumen";
         if (strcmp(key, "vol_down") == 0) return "Bajar volumen";
         if (strcmp(key, "mute") == 0) return "Silenciar volumen";
@@ -118,7 +118,7 @@ const char* _(const char* key) {
         if (strcmp(key, "language") == 0) return "Idioma: Español";
         if (strcmp(key, "saved") == 0) return "¡Configuración guardada!";
     } else {
-        if (strcmp(key, "title") == 0) return "--- Vita Volume by inthecatsdreams ---";
+        if (strcmp(key, "title") == 0) return "--- Vita Volume by inthecatsdreams fork by TheheroGAC ---";
         if (strcmp(key, "vol_up") == 0) return "Increase Volume";
         if (strcmp(key, "vol_down") == 0) return "Decrease Volume";
         if (strcmp(key, "mute") == 0) return "Mute volume";
@@ -179,7 +179,10 @@ const char* keyFromIndex(int i) {
 
 void drawMenu(int sel) {
     clearScreen();
-    printf("%s\n\n", _(keyFromIndex(0)));
+    setColor(COLOR_YELLOW);
+    printf("%s\n\n", _("title"));
+    setColor(COLOR_WHITE);
+
     for (int i = 0; i < 8; i++) {
         if (i == sel) {
             setColor(COLOR_YELLOW);
@@ -189,6 +192,7 @@ void drawMenu(int sel) {
             printf("  %s\n", _(keyFromIndex(i)));
         }
     }
+
     int vol = getCurrentVolume();
     printf("\nVolume: %d %s\n", vol, getVolumeSymbol(vol));
     printf("AVLS: %s\n", getAVLSStatus() ? "ON" : "OFF");
