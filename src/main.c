@@ -1,12 +1,14 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+// main.c
+#include <psp2/kernel/processmgr.h>
 #include <psp2/io/fcntl.h>
 #include <psp2/io/stat.h>
 #include <psp2/power.h>
-#include <psp2/kernel/processmgr.h>
 #include <psp2/registrymgr.h>
-#include <debugScreen.h>
+#include "debugScreen.h"
+#include <psp2/ctrl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "ctrl.h"
 
 #define printf psvDebugScreenPrintf
@@ -27,13 +29,16 @@ unsigned int keyEnter = SCE_CTRL_CROSS;
 void ensureDirectoryExists() {
     SceIoStat stat;
     if (sceIoGetstat(CONFIG_DIR, &stat) < 0) {
-        sceIoMkdir(CONFIG_DIR, 0777);
+        int res = sceIoMkdir(CONFIG_DIR, 0777);
+        if (res < 0) {
+            printf("Errore creazione cartella config: %d\n", res);
+        }
     }
 }
 
 void saveSettings() {
     ensureDirectoryExists();
-    SceUID fd = sceIoOpen(CONFIG_PATH, SCE_O_WRONLY | SCE_O_CREAT | SCE_O_TRUNC, 6);
+    SceUID fd = sceIoOpen(CONFIG_PATH, SCE_O_WRONLY | SCE_O_CREAT | SCE_O_TRUNC, 0777);
     if (fd >= 0) {
         char buffer[256];
         snprintf(buffer, sizeof(buffer),
@@ -44,8 +49,13 @@ void saveSettings() {
             "key_enter = 0x%X\n",
             lang, selected, keyUp, keyDown, keyEnter
         );
-        sceIoWrite(fd, buffer, strlen(buffer));
+        int written = sceIoWrite(fd, buffer, strlen(buffer));
+        if (written < 0) {
+            printf("Errore scrittura file cfg: %d\n", written);
+        }
         sceIoClose(fd);
+    } else {
+        printf("Errore apertura file cfg: %d\n", fd);
     }
 }
 
@@ -80,7 +90,6 @@ void loadSettings() {
         } else if (strncmp(line, "key_enter =", 11) == 0) {
             sscanf(line + 11, "%x", &keyEnter);
         }
-
         line = strtok(NULL, "\n");
     }
 }
@@ -170,7 +179,7 @@ const char* keyFromIndex(int i) {
 
 void drawMenu(int sel) {
     clearScreen();
-    printf("%s\n\n", _("title"));
+    printf("%s\n\n", _(keyFromIndex(0)));
     for (int i = 0; i < 8; i++) {
         if (i == sel) {
             setColor(COLOR_YELLOW);
@@ -187,6 +196,7 @@ void drawMenu(int sel) {
 
 int main() {
     psvDebugScreenInit();
+    sceCtrlSetSamplingMode(SCE_CTRL_MODE_DIGITAL);
     loadSettings();
     drawMenu(selected);
 
@@ -223,6 +233,7 @@ int main() {
                     if (strcmp(lang, "it") == 0) lang = "en";
                     else if (strcmp(lang, "en") == 0) lang = "es";
                     else lang = "it";
+                    saveSettings();
                     showMessage(_("saved"));
                     break;
             }
